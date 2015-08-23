@@ -13,10 +13,13 @@ import (
 	"time"
 )
 
-func getText(jobUrl string, start int) (string, int, bool, error) {
+func getLog(jobUrl string, start int) (string, int, bool, error) {
 
 	values := make(url.Values)
 	values.Set("start", strconv.Itoa(start))
+
+	var moreData bool
+	moreData = false
 
 	resp, err := http.PostForm(jobUrl, values)
 
@@ -29,23 +32,40 @@ func getText(jobUrl string, start int) (string, int, bool, error) {
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
-	moreData, err := strconv.ParseBool(resp.Header.Get("X-More-Data"))
+	if err != nil {
+		return "", 0, false, err
+	}
+	moreDataHeader := resp.Header.Get("X-More-Data")
+	if (moreDataHeader != "") {
+		moreData, err = strconv.ParseBool(moreDataHeader)
+		if err != nil {
+			return "", 0, false, err
+		}
+	}
+
 	testSize, err := strconv.Atoi(resp.Header.Get("X-Text-Size"))
+	if err != nil {
+		return "", 0, false, err
+	}
 	return string(body), testSize, moreData, nil
 }
 
 
-func getJobUrl(jobName string) string {
+func getJobUrl(baseUrl string, jobName string, jobNumber string) (string, error) {
 	parts := strings.Split(jobName, "/")
 
 	var result string
 
 	for _, name := range parts {
-		result = result + "/job/" + strings.Replace(name, " ", "%20", -1)
+		result = result + "/job/" + name
 
 	}
+	url, err := url.Parse(baseUrl + result + "/" + jobNumber + "/logText/progressiveText")
+	if err != nil {
+		return "", err
+	}
 
-	return result
+	return url.String(), nil;
 
 }
 
@@ -59,8 +79,13 @@ func main() {
 
 	flag.Parse()
 
-	jobName := getJobUrl(*job)
-	jenkinsUrl := *baseUrl + jobName + "/" + *jobNumber + "/logText/progressiveText"
+	jenkinsUrl, err := getJobUrl(*baseUrl, *job, *jobNumber)
+
+	if (err != nil) {
+		fmt.Println("Error: " + err.Error())
+		os.Exit(3)
+	}
+
 
 	var start int
 	var body string
@@ -70,13 +95,13 @@ func main() {
 	for (moreData) {
 		var newStart int
 		var err error
-		body, newStart, moreData, err = getText(jenkinsUrl, start)
+		body, newStart, moreData, err = getLog(jenkinsUrl, start)
 		if (err != nil) {
-			fmt.Println(err)
+			fmt.Println("Error: " + err.Error())
 			os.Exit(3)
 		}
 		if (newStart > start) {
-			fmt.Print(string(body))
+			fmt.Print(body)
 		}
 		start = newStart
 		time.Sleep(200 * time.Millisecond)
