@@ -1,15 +1,15 @@
 package main
 
 import (
-	"flag"
-	"strings"
 	"errors"
-	"os"
+	"flag"
 	"fmt"
-	"net/http"
 	"io/ioutil"
-	"strconv"
+	"net/http"
 	"net/url"
+	"os"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -27,7 +27,7 @@ func getLog(jobUrl string, start int) (string, int, bool, error) {
 		return "", 0, false, err
 	}
 	defer resp.Body.Close()
-	if (resp.StatusCode != 200) {
+	if resp.StatusCode != 200 {
 		return "", 0, false, errors.New("Got " + strconv.Itoa(resp.StatusCode) + " response code from Jenkins!")
 	}
 
@@ -36,7 +36,7 @@ func getLog(jobUrl string, start int) (string, int, bool, error) {
 		return "", 0, false, err
 	}
 	moreDataHeader := resp.Header.Get("X-More-Data")
-	if (moreDataHeader != "") {
+	if moreDataHeader != "" {
 		moreData, err = strconv.ParseBool(moreDataHeader)
 		if err != nil {
 			return "", 0, false, err
@@ -49,7 +49,6 @@ func getLog(jobUrl string, start int) (string, int, bool, error) {
 	}
 	return string(body), testSize, moreData, nil
 }
-
 
 func getJobUrl(baseUrl string, jobName string, jobNumber string) (string, error) {
 	parts := strings.Split(jobName, "/")
@@ -65,10 +64,9 @@ func getJobUrl(baseUrl string, jobName string, jobNumber string) (string, error)
 		return "", err
 	}
 
-	return url.String(), nil;
+	return url.String(), nil
 
 }
-
 
 func main() {
 
@@ -81,26 +79,25 @@ func main() {
 
 	jenkinsUrl, err := getJobUrl(*baseUrl, *job, *jobNumber)
 
-	if (err != nil) {
+	if err != nil {
 		fmt.Println("Error: " + err.Error())
 		os.Exit(3)
 	}
-
 
 	var start int
 	var body string
 	var moreData bool
 	moreData = true
 	start = 0
-	for (moreData) {
+	for moreData {
 		var newStart int
 		var err error
 		body, newStart, moreData, err = getLog(jenkinsUrl, start)
-		if (err != nil) {
+		if err != nil {
 			fmt.Println("Error: " + err.Error())
 			os.Exit(3)
 		}
-		if (newStart > start) {
+		if newStart > start {
 			fmt.Print(body)
 		}
 		start = newStart
